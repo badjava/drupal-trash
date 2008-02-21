@@ -1,0 +1,23 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Installation file for the trash module.
+ */
+
+/**
+ * Status value used for database field {node}.status
+ */
+define('STATUS_TRASH', -1);
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function trash_uninstall() {
+  // Empty trash on uninstallation
+  $result = db_query("SELECT n.nid FROM {node} n WHERE n.status = %d", STATUS_TRASH);
+  while ($node = db_fetch_object($result)) {
+    node_delete($node->nid);
+  }
+}
