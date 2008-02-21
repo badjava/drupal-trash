@@ -32,8 +32,8 @@ define('TRASH_LIST_SIZE', 50);
 /**
  * Implementation of hook_help().
  */
-function trash_help($section) {
-  switch ($section) {
+function trash_help($path, $arg) {
+  switch ($path) {
     case 'admin/help#trash':
       $output = '<p>' . t('The trash module gives you a node trash. Deleted nodes will be moved into the trash and can be restored or permanently deleted afterwards') . '</p>';
       return $output;
@@ -51,100 +51,117 @@ function trash_perm() {
 /**
  * Implementation of hook_menu().
  */
-function trash_menu($may_cache) {
+function trash_menu() {
   $items = array();
-  if ($may_cache) {
-    $items[] = array(
-      'path' => 'trash',
-      'title' => t('Trash'),
-      'description' => t('Node trash.'),
-      'access' => user_access('view trash'),
-      'callback' => 'trash_view',
-      'type' => MENU_NORMAL_ITEM
-    );
-    $items[] = array(
-      'path' => 'trash/empty',
-      'access' => user_access('purge trash'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('trash_empty_trash_confirm'),
-      'type' => MENU_CALLBACK
-    );
+  $items['trash'] = array(
+    'title' => t('Trash'),
+    'description' => t('Node trash.'),
+    'page callback' => 'trash_view',
+    'access arguments' => array('view trash'),
+    'type' => MENU_NORMAL_ITEM
+  );
+  $items['trash/empty'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('trash_empty_trash_confirm'),
+    'access arguments' => array('purge trash'),
+    'type' => MENU_CALLBACK
+  );
+  // View node from trash
+  $items['trash/%node'] = array(
+    'title' => t('View'),
+    'page callback' => 'trash_view_node',
+    'page arguments' => array(1),
+    'access arguments' => array('view trash'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['trash/%node/view'] = array(
+    'title' => t('View'),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  // Restore node from trash
+  $items['trash/%node/restore'] = array(
+    'title' => t('Restore'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('trash_restore_node_confirm', 1),
+    'access arguments' => array('restore trash'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 0,
+  );
+  // Delete node from trash
+  $items['trash/%node/delete'] = array(
+    'title' => t('Delete'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('trash_delete_node_confirm', 1),
+    'access arguments' => array('purge trash'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10,
+  );
+  // Move to trash tab
+  $items['node/%node/trash'] = array(
+    'title' => t('Move to trash'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('node_delete_confirm', 1),
+    'access callback' => '_trash_move_tab_access',
+    'access arguments' => array(1),
+    'weight' => 1,
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'node.pages.inc',
+    'file path' => drupal_get_path('module', 'node')
+  );
+  return $items;
+}
+
+/**
+ * Implementation of hook_menu_alter().
+ */
+function trash_menu_alter(&$callbacks) {
+  $callbacks['node/%node']['page callback'] = '_trash_node_page_view';
+  $callbacks['node/%node/edit']['page callback'] = '_trash_node_page_edit';
+  $callbacks['node/%node/delete']['page callback'] = '_trash_node_page_delete';
+}
+
+/**
+ * Access callback for 'Move to trash' tab.
+ */
+function _trash_move_tab_access($node) {
+  return $node->nid && trash_enabled($node->type) && trash_move_to_trash_tab_enabled($node->type);
+}
+
+/**
+ * Overridden page callback for 'node/%node' path.
+ */
+function _trash_node_page_view($node, $cid = NULL) {
+  if ($node->status == STATUS_TRASH) {
+    return trash_deleted_message($node);
   }
   else {
-    if (arg(0) == 'trash' && is_numeric(arg(1))) {
-      $node = node_load(arg(1));
-      if ($node->nid) {
-        // View node from trash
-        $items[] = array(
-          'path' => 'trash/'. arg(1),
-          'title' => t('View'),
-          'callback' => 'trash_view_node',
-          'callback arguments' => array($node),
-          'access' => user_access('view trash'),
-          'type' => MENU_CALLBACK,
-        );
-        $items[] = array(
-          'path' => 'trash/'. arg(1) .'/view',
-          'title' => t('View'),
-          'type' => MENU_DEFAULT_LOCAL_TASK,
-          'weight' => -10,
-        );
-        // Restore node from trash
-        $items[] = array(
-          'path' => 'trash/'. arg(1) .'/restore',
-          'title' => t('Restore'),
-          'callback' => 'drupal_get_form',
-          'callback arguments' => array('trash_restore_node_confirm', $node),
-          'access' => user_access('restore trash'),
-          'type' => MENU_LOCAL_TASK,
-          'weight' => 0,
-        );
-        // Delete node from trash
-        $items[] = array(
-          'path' => 'trash/'. arg(1) .'/delete',
-          'title' => t('Delete'),
-          'callback' => 'drupal_get_form',
-          'callback arguments' => array('trash_delete_node_confirm', $node),
-          'access' => user_access('purge trash'),
-          'type' => MENU_LOCAL_TASK,
-          'weight' => 10,
-        );
-      }
-    }
-    elseif (arg(0) == 'node' && is_numeric(arg(1))) {
-      $node = node_load(arg(1));
-      if ($node->nid && $node->status == STATUS_TRASH) {
-        // It's a trashed node, disable 'view' access
-        $items[] = array(
-          'path' => 'node/'. arg(1),
-          'callback' => 'trash_deleted_message',
-          'callback arguments' => array($node)
-        );
-        $items[] = array(
-          'path' => 'node/'. arg(1) .'/edit',
-          'callback' => 'trash_deleted_message',
-          'callback arguments' => array($node)
-        );
-        $items[] = array(
-          'path' => 'node/'. arg(1) .'/delete',
-          'callback' => 'trash_deleted_message',
-          'callback arguments' => array($node)
-        );
-      }
-      elseif ($node->nid && trash_enabled($node->type) && trash_move_to_trash_tab_enabled($node->type)) {
-        $items[] = array(
-          'path' => 'node/'. arg(1) .'/trash',
-          'title' => t('Move to trash'),
-          'callback' => 'drupal_get_form',
-          'callback arguments' => array('node_delete_confirm', $node),
-          'access' => node_access('delete', $node),
-          'weight' => 1,
-          'type' => MENU_LOCAL_TASK
-        );
-      }
-    }
+    return node_page_view($node, $cid);
   }
-  return $items;
+}
+
+/**
+ * Overridden page callback for 'node/%node/edit' path.
+ */
+function _trash_node_page_edit($node) {
+  if ($node->status == STATUS_TRASH) {
+    return trash_deleted_message($node);
+  }
+  else {
+    return node_page_edit($node);
+  }
+}
+
+/**
+ * Overridden page callback for 'node/%node/delete' path.
+ */
+function _trash_node_page_delete($node) {
+  if ($node->status == STATUS_TRASH) {
+    return trash_deleted_message($node);
+  }
+  else {
+    return drupal_get_form('node_delete_confirm', $node);
+  }
 }
 
 /**
@@ -158,10 +175,10 @@ function trash_form_alter(&$form, $form_state, $form_id) {
         // Node is edited.
         // Remove delete button as there is a 'Move to trash' tab now.
         if (trash_delete_button_removing_enabled($form['type']['#value'])) {
-          unset($form['delete']);
+          unset($form['buttons']['delete']);
         }
         else {
-          $form['delete']['#value'] = t('Move to trash');
+          $form['buttons']['delete']['#value'] = t('Move to trash');
         }
       }
     }
@@ -181,9 +198,7 @@ function trash_form_alter(&$form, $form_state, $form_id) {
       '#default_value' => variable_get('trash_settings_'. $form['#node_type']->type, array()),
     );
   }
-  print_r($form_id);
   if ($form_id == 'node_delete_confirm') {
-  print_r($form);
     $node = node_load($form['nid']['#value']);
     if (trash_enabled($node->type)) {
       drupal_set_title(t('Are you sure you want to move %title to the trash?', array('%title' => $node->title)));
@@ -196,7 +211,7 @@ function trash_form_alter(&$form, $form_state, $form_id) {
       $form['description']['#value'] = t('The node will be moved to the !trash where it can be restored or permanently deleted.', array('!trash' => l(t('trash'), 'trash')));
       $form['actions']['submit']['#value'] = t('Move to trash');
       unset($form['#submit']);
-      $form['#submit']['trash_node_delete_confirm_submit'] = array();
+      $form['#submit'] = array('trash_node_delete_confirm_submit');
     }
   }
 }
@@ -319,7 +334,7 @@ function trash_view_node($node) {
 /**
  * Restore node confirmation form.
  */
-function trash_restore_node_confirm($node) {
+function trash_restore_node_confirm(&$form_state, $node) {
   $form['nid'] = array('#type' => 'value', '#value' => $node->nid);
   $form['log'] = array(
     '#type' => 'textfield',
@@ -337,13 +352,13 @@ function trash_restore_node_confirm($node) {
 /**
  * Restore node confirmation form submit handler.
  */
-function trash_restore_node_confirm_submit($form_id, $form_values) {
-  if ($form_values['confirm']) {
-    $node = node_load($form_values['nid']);
+function trash_restore_node_confirm_submit($form, &$form_state) {
+  if ($form_state['values']['confirm']) {
+    $node = node_load($form_state['values']['nid']);
     // Save node as a published again.
     $node->status = 1;
     $node->revision = TRUE;
-    $node->log = $form_values['log'];
+    $node->log = $form_state['values']['log'];
 
     // Call nodeapi hook
     node_invoke_nodeapi($node, 'restore from trash');
@@ -351,16 +366,19 @@ function trash_restore_node_confirm_submit($form_id, $form_values) {
     // Save node
     node_save($node);
 
-    // Go to trash page
-    return 'node/' . $node->nid;
+    // Go to restored node
+    $form_state['redirect'] = 'node/' . $node->nid;
   }
-  return 'trash';
+  else {
+    // Go to trash list
+    $form_state['redirect'] = 'trash';
+  }
 }
 
 /**
  * Permanently delete node confirmation form.
  */
-function trash_delete_node_confirm($node) {
+function trash_delete_node_confirm(&$form_state, $node) {
  $form['nid'] = array('#type' => 'value', '#value' => $node->nid);
 
  return confirm_form($form,
@@ -373,86 +391,61 @@ function trash_delete_node_confirm($node) {
 /**
  * Permanently delete node confirmation form submit handler.
  */
-function trash_delete_node_confirm_submit($form_id, $form_values) {
-  if ($form_values['confirm']) {
+function trash_delete_node_confirm_submit($form, &$form_state) {
+  if ($form_state['values']['confirm']) {
     // Delete the node.
-    node_delete($form_values['nid']);
+    node_delete($form_state['values']['nid']);
   }
-  return 'trash';
+  // Go to trash list
+  $form_state['redirect'] = 'trash';
 }
 
 /**
  * Submit handler for the 'node_delete_confirm' form of the node module.
  * This is called instead of the original submit handler if the trash is enabled.
  */
-function trash_node_delete_confirm_submit($form_id, $form_values) {
-  if ($form_values['confirm']) {
-    $node = node_load($form_values['nid']);
+function trash_node_delete_confirm_submit($form, &$form_state) {
+  if ($form_state['values']['confirm']) {
+    $node = node_load($form_state['values']['nid']);
     if (trash_enabled($node->type)) {
       // Save node as a new revision with status set to TRASH.
       $node->status = STATUS_TRASH;
       $node->revision = TRUE;
-      $node->log = $form_values['log'];
+      $node->log = $form_state['values']['log'];
       // Call nodeapi hook
       node_invoke_nodeapi($node, 'move to trash');
       // Save node
       node_save($node);
-      // Go to trash page
-      return 'trash';
+      // Go to trash list
+      $form_state['redirect'] = 'trash';
     }
     else {
       // Call original submit handler
-      return node_delete_confirm_submit($form_id, $form_values);
+      node_delete_confirm_submit($form, $form_state);
     }
   }
-  return '<front>';
 }
 
 /**
  * Empty trash confirmation form.
  */
-function trash_empty_trash_confirm() {
+function trash_empty_trash_confirm(&$form_state) {
  return confirm_form($form,
    t('Are you sure you want to empty the trash?', array('%title' => $node->title)),
    isset($_GET['destination']) ? $_GET['destination'] : 'trash',
    t('This action cannot be undone.'),
-   t('Delete'), t('Cancel'));
+   t('Empty trash'), t('Cancel'));
 }
 
 /**
  * Empty trash confirmation form submit handler.
  */
-function trash_empty_trash_confirm_submit($form_id, &$form_values) {
-  if ($form_values['confirm']) {
+function trash_empty_trash_confirm_submit($form, &$form_state) {
+  if ($form_state['values']['confirm']) {
     $result = db_query("SELECT n.nid FROM {node} n WHERE n.status = %d", STATUS_TRASH);
     while ($node = db_fetch_object($result)) {
       node_delete($node->nid);
     }
   }
-  return 'trash';
+  $form_state['redirect'] = 'trash';
 }
-
-/**
- * Implementation of hook_node_access_records().
- */
-// Not needed anymore? (since the node_view page is overwritten)
-// function trash_node_access_records($node) {
-//   if (!trash_enabled($node->type)) {
-//     return;
-//   }
-// 
-//   // Look if the status is set to 'trash'
-//   if ($node->status == STATUS_TRASH) {
-//     // If yes, remove all rights for this node.
-//     $grants = array();
-//     $grants[] = array(
-//       'realm' => 'all',
-//       'gid' => FALSE,
-//       'grant_view' => FALSE,
-//       'grant_update' => FALSE,
-//       'grant_delete' => FALSE,
-//       'priority' => 0
-//     );
-//     return $grants;
-//   }
-// }
