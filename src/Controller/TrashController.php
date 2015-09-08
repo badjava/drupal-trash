@@ -21,7 +21,7 @@ class TrashController extends ControllerBase {
   protected $entityQuery;
   
   /**
-   * Constructs an AggregatorFeedBlock object.
+   * Constructs an TrashController object.
    *
    * @param \Drupal\Core\Entity\Query\QueryFactory $entity_query
    *   The entity query object.
