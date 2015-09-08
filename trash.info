@@ -1,3 +1,0 @@
-name = Trash
-description = "Offer the possibility to keep deleted nodes in a trash for possible later restoration"
-core = 6.x
