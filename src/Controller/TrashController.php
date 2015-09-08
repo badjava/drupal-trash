@@ -48,7 +48,7 @@ class TrashController extends ControllerBase {
     $results = $this->entityQuery->get($entity)
             ->isDeleted()
             ->execute();
-    $entities = entity_load_multiple_deleted('node', $results);
+    $entities = entity_load_multiple_deleted($entity, $results);
     
     $header = array(
       'id' => t('Id'),
