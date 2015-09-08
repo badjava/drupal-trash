@@ -1,0 +1,3 @@
+trash.local_tasks:
+  deriver: 'Drupal\trash\Plugin\Derivative\TrashLocalTasks'
+  weight: 100

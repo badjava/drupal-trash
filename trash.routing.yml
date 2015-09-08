@@ -1,5 +1,14 @@
-devel.elements_page:
+trash.default:
   path: '/admin/trash'
+  defaults:
+    _controller: '\Drupal\trash\Controller\TrashController::defaultRedirect'
+    _title: 'Trash'
+  options:
+    _admin_route: TRUE
+  requirements:
+    _permission: 'access unpublished content'
+trash.entity_list:
+  path: '/admin/trash/{entity}'
   defaults:
     _controller: '\Drupal\trash\Controller\TrashController::entityList'
     _title: 'Trash'
