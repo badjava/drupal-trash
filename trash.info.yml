@@ -1,0 +1,6 @@
+name: Trash
+type: module
+description: 'Displays deleted entities and allows them to be restored.'
+core: 8.x
+dependencies:
+  - multiversion

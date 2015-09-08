@@ -1,0 +1,6 @@
+{
+    "name": "drupal/trash",
+    "description": "Displays deleted entities and allows them to be restored.",
+    "type": "drupal-module",
+    "license": "GPL-2.0+"
+}
