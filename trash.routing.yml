@@ -9,7 +9,7 @@ trash.default:
     _permission: 'access unpublished content'
 
 trash.entity_list:
-  path: '/admin/trash/{entity}'
+  path: '/admin/trash/{entity_type_id}'
   defaults:
     _controller: '\Drupal\trash\Controller\TrashController::entityList'
     _title_callback: '\Drupal\trash\Controller\TrashController::getTitle'

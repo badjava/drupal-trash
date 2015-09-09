@@ -6,13 +6,17 @@
 
 namespace Drupal\trash\Form;
 
-use Drupal\Core\Form\FormBase;
+use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Implements an example form.
  */
-class PurgeForm extends FormBase {
+class PurgeForm extends ConfirmFormBase {
+
+  protected $entity;
 
   /**
    * {@inheritdoc}.
@@ -22,36 +26,62 @@ class PurgeForm extends FormBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function getQuestion() {
+    return $this->t('Are you sure you want to purge "@label"?', ['@label' => $this->entity->label()]);
+  }
+
+  /**
+    * {@inheritdoc}
+    */
+   public function getDescription() {
+     return $this->t('The @entity "@label" will be purged.', ['@entity' => $this->entity->getEntityType()->get('label'), '@label' => $this->entity->label()]);
+   }
+
+  /**
+     * {@inheritdoc}
+     */
+    public function getConfirmText() {
+      return $this->t('Purge');
+    }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCancelUrl() {
+    return new Url('trash.entity_list', ['entity_type_id' => $this->entity->getEntityTypeId()]);
+  }
+
+  /**
    * {@inheritdoc}.
    */
-  public function buildForm(array $form, FormStateInterface $form_state) {
-    $form['phone_number'] = array(
-      '#type' => 'tel',
-      '#title' => $this->t('Your phone number')
-    );
-    $form['actions']['#type'] = 'actions';
-    $form['actions']['submit'] = array(
-      '#type' => 'submit',
-      '#value' => $this->t('Save'),
-      '#button_type' => 'primary',
-    );
-    return $form;
+  public function buildForm(array $form, FormStateInterface $form_state, $entity = '', $id = '') {
+    if (!$this->entity = entity_load_deleted($entity, $id, true)) {
+      drupal_set_message(t('Unable to load deleted entity.'), 'error');
+      return '';
+    }
+
+    return parent::buildForm($form, $form_state);
   }
 
   /**
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-    if (strlen($form_state->getValue('phone_number')) < 3) {
-      $form_state->setErrorByName('phone_number', $this->t('The phone number is too short. Please enter a full phone number.'));
-    }
+
   }
 
   /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    drupal_set_message($this->t('Your phone number is @number', array('@number' => $form_state->getValue('phone_number'))));
+    $entity = $this->entity;
+    $entity->_deleted = FALSE;
+    if ($entity->save()) {
+      drupal_set_message(t('The @entity "@label" has been purged.', ['@entity' => $this->entity->getEntityType()->get('label'), '@label' => $this->entity->label()]));
+      $form_state->setRedirect('trash.entity_list', ['entity_type_id' => $this->entity->getEntityTypeId()]);
+    }
   }
 
 }

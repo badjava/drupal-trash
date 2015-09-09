@@ -65,12 +65,12 @@ class TrashController extends ControllerBase {
   }
   
   public function summary() {
-    $entities = $this->multiversionManager->getSupportedEntityTypes();
     $items = [];
     foreach ($this->multiversionManager->getSupportedEntityTypes() as $entity_type_id => $entity_type) {
+      $entities = $this->loadEntities($entity_type_id);
       $items[$entity_type_id] = [
         '#type' => 'link',
-        '#title' => $entity_type->get('label'), 
+        '#title' => $entity_type->get('label') . ' (' . count($entities) . ')', 
         '#url' => Url::fromRoute('trash.entity_list', ['entity' => $entity_type->id()]),
       ];
     }
@@ -83,17 +83,17 @@ class TrashController extends ControllerBase {
   
   public function getTitle($entity = NULL) {
     if (!empty($entity)) {
-      $entities = $this->multiversionManager->getSupportedEntityTypes();
-      return $entities[$entity]->get('label');
+      $entity_types = $this->multiversionManager->getSupportedEntityTypes();
+      return $entity_types[$entity]->get('label') . ' trash';
     }
     else {
       return 'Trash';
     }
   }
   
-  public function entityList($entity = NULL) {
+  public function entityList($entity_type_id = NULL) {
 
-    $entities = $this->loadEntities($entity);
+    $entities = $this->loadEntities($entity_type_id);
 
     $header = array(
       'id' => t('Id'),
@@ -142,11 +142,12 @@ class TrashController extends ControllerBase {
       }
     }
     
+    $entity_types = $this->multiversionManager->getSupportedEntityTypes();
     return array(
       '#type' => 'table',
       '#header' => $header,
       '#rows' => $rows,
-      '#empty' => $this->t('No entities available.'),
+      '#empty' => $this->t('The @label trash is empty.', ['@label' => $entity_types[$entity_type_id]->get('label')]),
     );
   }
   

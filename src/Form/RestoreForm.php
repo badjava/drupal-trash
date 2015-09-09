@@ -29,14 +29,14 @@ class RestoreForm extends ConfirmFormBase {
    * {@inheritdoc}
    */
   public function getQuestion() {
-    return $this->t('Are you sure you want to restore "%label"?', ['%label' => $this->entity->label()]);
+    return $this->t('Are you sure you want to restore "@label"?', ['@label' => $this->entity->label()]);
   }
 
   /**
     * {@inheritdoc}
     */
    public function getDescription() {
-     return $this->t('The %entity "%label" will be restored.', ['%entity' => $this->entity->getEntityType()->get('label'), '%label' => $this->entity->label()]);
+     return $this->t('The @entity "@label" will be restored.', ['@entity' => $this->entity->getEntityType()->get('label'), '@label' => $this->entity->label()]);
    }
 
   /**
@@ -50,7 +50,7 @@ class RestoreForm extends ConfirmFormBase {
    * {@inheritdoc}
    */
   public function getCancelUrl() {
-    return new Url('trash.entity_list', ['entity' => $this->entity->getEntityTypeId()]);
+    return new Url('trash.entity_list', ['entity_type_id' => $this->entity->getEntityTypeId()]);
   }
 
   /**
@@ -79,8 +79,8 @@ class RestoreForm extends ConfirmFormBase {
     $entity = $this->entity;
     $entity->_deleted = FALSE;
     if ($entity->save()) {
-      drupal_set_message(t('The %entity "%label" has been restored.', ['%entity' => $this->entity->getEntityType()->get('label'), '%label' => $this->entity->label()]));
-      $form_state->setRedirect('trash.entity_list', ['entity' => $this->entity->getEntityTypeId()]);
+      drupal_set_message(t('The @entity "@label" has been restored.', ['@entity' => $this->entity->getEntityType()->get('label'), '@label' => $this->entity->label()]));
+      $form_state->setRedirect('trash.entity_list', ['entity_type_id' => $this->entity->getEntityTypeId()]);
     }
   }
 
