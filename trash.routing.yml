@@ -1,18 +1,39 @@
 trash.default:
   path: '/admin/trash'
   defaults:
-    _controller: '\Drupal\trash\Controller\TrashController::defaultRedirect'
+    _controller: '\Drupal\trash\Controller\TrashController::summary'
     _title: 'Trash'
   options:
     _admin_route: TRUE
   requirements:
     _permission: 'access unpublished content'
+
 trash.entity_list:
   path: '/admin/trash/{entity}'
   defaults:
     _controller: '\Drupal\trash\Controller\TrashController::entityList'
-    _title: 'Trash'
+    _title_callback: '\Drupal\trash\Controller\TrashController::getTitle'
   options:
     _admin_route: TRUE
   requirements:
     _permission: 'access unpublished content'
+
+restore.form:
+  path: '/admin/trash/{entity}/restore/{id}'
+  defaults:
+    _title: 'Purge'
+    _form: '\Drupal\trash\Form\RestoreForm'
+  requirements:
+    _permission: 'access unpublished content'
+  options:
+    _admin_route: TRUE
+
+purge.form:
+  path: '/admin/trash/{entity}/purge/{id}'
+  defaults:
+    _title: 'Purge'
+    _form: '\Drupal\trash\Form\PurgeForm'
+  requirements:
+    _permission: 'access unpublished content'
+  options:
+    _admin_route: TRUE

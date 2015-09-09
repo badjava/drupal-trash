@@ -11,6 +11,8 @@ use Drupal\Core\Controller\ControllerBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Entity\Query\QueryFactory;
 use Drupal\Core\Url;
+use Drupal\Core\Datetime\DateFormatter;
+use Drupal\multiversion\MultiversionManagerInterface;
 
 class TrashController extends ControllerBase {
 
@@ -20,15 +22,35 @@ class TrashController extends ControllerBase {
    * @var \Drupal\Core\Entity\Query\QueryFactory
    */
   protected $entityQuery;
-  
+
+  /**
+   * The date formatter service.
+   *
+   * @var \Drupal\Core\Datetime\DateFormatter
+   */
+  protected $dateFormatter;
+
+  /**
+   * The entity manager service.
+   *
+   * @var \Drupal\multiversion\MultiversionManagerInterface
+   */
+  protected $multiversionManager;
+
   /**
    * Constructs an TrashController object.
    *
    * @param \Drupal\Core\Entity\Query\QueryFactory $entity_query
    *   The entity query object.
+   * @param \Drupal\Core\Datetime\DateFormatter $date_formatter
+   *    The date formatter service.
+   * @param \Drupal\multiversion\MultiversionManagerInterface $entity_manager
+   *   The entity type manager.
    */
-  public function __construct(QueryFactory $entity_query) {
+  public function __construct(QueryFactory $entity_query, DateFormatter $date_formatter, multiversionManagerInterface $multiversion_manager) {
     $this->entityQuery = $entity_query;
+    $this->dateFormatter = $date_formatter;
+    $this->multiversionManager = $multiversion_manager;
   }
   
   /**
@@ -36,20 +58,30 @@ class TrashController extends ControllerBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.query')
+      $container->get('entity.query'),
+      $container->get('date.formatter'),
+      $container->get('multiversion.manager')
     );
   }
   
-  public function defaultRedirect() {
-    return $this->redirect('trash.entity_list', ['entity' => $this->defaultEntity()]);
+  public function summary() {
+    return array('#markup' => 'Trashing Drupal since 2015.');
+  }
+  
+  public function getTitle($entity = NULL) {
+    if (!empty($entity)) {
+      $entities = $this->multiversionManager->getSupportedEntityTypes();
+      return $entities[$entity]->get('label');
+    }
+    else {
+      return 'Trash';
+    }
   }
   
   public function entityList($entity = NULL) {
-    $results = $this->entityQuery->get($entity)
-            ->isDeleted()
-            ->execute();
-    $entities = entity_load_multiple_deleted($entity, $results);
-    
+
+    $entities = $this->loadEntities($entity);
+
     $header = array(
       'id' => t('Id'),
       'name' => t('name'),
@@ -66,16 +98,15 @@ class TrashController extends ControllerBase {
     
     foreach ($entities as $entity) {
       if ($entity instanceof \Drupal\Core\Entity\EntityInterface) {
-        $url = Url::fromUri('http://www.example.com/');
         $links = [
           'restore' => [
             'title' => 'Restore', 
-            'url' => $url,
+            'url' => Url::fromRoute('restore.form', ['entity' => $entity->getEntityTypeId(), 'id' => $entity->id()]),
           ],
-          'purge' => [
-            'title' => 'Purge', 
-            'url' => $url,
-          ],
+          //'purge' => [
+          //  'title' => 'Purge', 
+          //  'url' => Url::fromRoute('purge.form', ['entity' => $entity->getEntityTypeId(), 'id' => $entity->id()]),
+          //],
         ];
         $rows[] = array(
           'id' => $entity->id(),
@@ -87,7 +118,7 @@ class TrashController extends ControllerBase {
               '#url' => $entity->urlInfo(),
             ],
           ],
-          'changed' => \Drupal::service('date.formatter')->format($entity->getChangedTimeAcrossTranslations(), 'short'),
+          'changed' => $this->dateFormatter->format($entity->getChangedTimeAcrossTranslations(), 'short'),
           'operations' => [
             'data' => [
               '#type' => 'operations',
@@ -106,9 +137,12 @@ class TrashController extends ControllerBase {
     );
   }
   
-  private function defaultEntity(){
-    if (\Drupal::moduleHandler()->moduleExists('node')) {
-      return 'node';
+  private function loadEntities($entity = null) {
+    if (!empty($entity)) {
+      $results = $this->entityQuery->get($entity)
+              ->isDeleted()
+              ->execute();
+      return entity_load_multiple_deleted($entity, $results);
     }
   }
 }
