@@ -50,7 +50,7 @@ class TrashLocalTasks extends DeriverBase implements ContainerDeriverInterface {
       $this->derivatives["trash_$entity_type_id"] = $base_plugin_definition;
       $this->derivatives["trash_$entity_type_id"]['title'] = $entity_type->get('label');
       $this->derivatives["trash_$entity_type_id"]['route_name'] = 'trash.entity_list';
-      $this->derivatives["trash_$entity_type_id"]['base_route'] = 'trash.default';
+      $this->derivatives["trash_$entity_type_id"]['parent_id'] = 'trash.default';
       $this->derivatives["trash_$entity_type_id"]['route_parameters'] = array('entity' => $entity_type_id);
     }
     return $this->derivatives;

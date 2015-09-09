@@ -65,7 +65,20 @@ class TrashController extends ControllerBase {
   }
   
   public function summary() {
-    return array('#markup' => 'Trashing Drupal since 2015.');
+    $entities = $this->multiversionManager->getSupportedEntityTypes();
+    $items = [];
+    foreach ($this->multiversionManager->getSupportedEntityTypes() as $entity_type_id => $entity_type) {
+      $items[$entity_type_id] = [
+        '#type' => 'link',
+        '#title' => $entity_type->get('label'), 
+        '#url' => Url::fromRoute('trash.entity_list', ['entity' => $entity_type->id()]),
+      ];
+    }
+    return [
+      '#theme' => 'item_list',
+      '#items' => $items,
+      '#title' => 'Trash bins'
+    ];
   }
   
   public function getTitle($entity = NULL) {
