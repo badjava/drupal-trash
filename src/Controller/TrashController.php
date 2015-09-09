@@ -71,7 +71,7 @@ class TrashController extends ControllerBase {
       $items[$entity_type_id] = [
         '#type' => 'link',
         '#title' => $entity_type->get('label') . ' (' . count($entities) . ')', 
-        '#url' => Url::fromRoute('trash.entity_list', ['entity' => $entity_type->id()]),
+        '#url' => Url::fromRoute('trash.entity_list', ['entity_type_id' => $entity_type->id()]),
       ];
     }
     return [
